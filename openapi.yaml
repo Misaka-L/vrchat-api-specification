@@ -7355,14 +7355,6 @@ components:
         imageUrl:
           minLength: 1
           type: string
-        instances:
-          type: array
-          description: Will always be an empty list when unauthenticated.
-          items:
-            maxItems: 2
-            minItems: 2
-            type: array
-            items: {}
         labsPublicationDate:
           example: none
           minLength: 1
