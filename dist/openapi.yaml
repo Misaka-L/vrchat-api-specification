@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: VRChat API Documentation
-  version: 1.19.0
+  version: 1.19.1
   contact:
     name: Unofficial VRChat API Documentation Project
     url: https://github.com/VRChatAPI
@@ -151,6 +151,8 @@ tags:
       As of October 2022, `showAvatar` and `hideAvatar` has been moved to local storage.
       Sending these types to the API will result in a 200 OK response, but the API will **not** store them.
       More information is avaiable on VRChat's official [documentation on Local Storage](https://docs.vrchat.com/docs/local-vrchat-storage).
+  - name: prints
+    description: Prints are a way to print photos directly from the VRChat camera.
   - name: system
     description: System Docs Here
   - name: users
@@ -552,7 +554,9 @@ paths:
         - avatars
       x-codeSamples:
         - lang: cURL
-          source: curl -X PUT "https://api.vrchat.cloud/api/1/avatars/{avatarId}/selectFallback"
+          source: |-
+            curl -X PUT "https://api.vrchat.cloud/api/1/avatars/{avatarId}/selectFallback" \
+                 -b "auth={authCookie}"
       responses:
         '200':
           $ref: '#/components/responses/CurrentUserResponse'
@@ -601,6 +605,93 @@ paths:
         - $ref: '#/components/parameters/platform'
         - $ref: '#/components/parameters/userIdAdmin'
       description: Search and list favorited avatars by query filters.
+  /avatars/licensed:
+    get:
+      summary: List Licensed Avatars
+      tags:
+        - avatars
+      x-codeSamples:
+        - lang: cURL
+          source: |-
+            curl -X GET "https://api.vrchat.cloud/api/1/avatars/licensed" \
+                 -b "auth={authCookie}"
+      responses:
+        '200':
+          $ref: '#/components/responses/AvatarListResponse'
+        '401':
+          $ref: '#/components/responses/MissingCredentialsError'
+      operationId: getLicensedAvatars
+      security:
+        - authCookie: []
+      parameters:
+        - $ref: '#/components/parameters/number'
+        - $ref: '#/components/parameters/offset'
+      description: List licensed avatars.
+  /avatars/{avatarId}/impostor/enqueue:
+    parameters:
+      - $ref: '#/components/parameters/avatarId'
+    post:
+      summary: Enqueue Impostor generation
+      tags:
+        - avatars
+      x-codeSamples:
+        - lang: cURL
+          source: |-
+            curl -X POST "https://api.vrchat.cloud/api/1/avatars/{avatarId}/impostor/enqueue" \
+                 -b "auth={authCookie}"
+      responses:
+        '200':
+          $ref: '#/components/responses/AvatarImpostorEnqueueResponse'
+        '401':
+          $ref: '#/components/responses/MissingCredentialsError'
+        '404':
+          $ref: '#/components/responses/AvatarNotFoundError'
+      operationId: enqueueImpostor
+      security:
+        - authCookie: []
+      description: Enqueue Impostor generation for that avatar.
+  /avatars/impostor/queue/stats:
+    get:
+      summary: Get Impostor Queue Stats
+      tags:
+        - avatars
+      x-codeSamples:
+        - lang: cURL
+          source: |-
+            curl -X GET "https://api.vrchat.cloud/api/1/avatars/impostor/queue/stats" \
+                 -b "auth={authCookie}"
+      responses:
+        '200':
+          $ref: '#/components/responses/AvatarImpostorQueueStatsResponse'
+        '401':
+          $ref: '#/components/responses/MissingCredentialsError'
+      operationId: getImpostorQueueStats
+      security:
+        - authCookie: []
+      description: Gets service stats for queued impostor.
+  /avatars/{avatarId}/impostor:
+    parameters:
+      - $ref: '#/components/parameters/avatarId'
+    delete:
+      summary: Delete generated Impostor
+      tags:
+        - avatars
+      x-codeSamples:
+        - lang: cURL
+          source: |-
+            curl -X DELETE "https://api.vrchat.cloud/api/1/avatars/{avatarId}/impostor" \
+                 -b "auth={authCookie}"
+      responses:
+        '200':
+          description: The Impostors generated for that avatar are deleted.
+        '401':
+          $ref: '#/components/responses/MissingCredentialsError'
+        '404':
+          $ref: '#/components/responses/AvatarNotFoundError'
+      operationId: deleteImpostor
+      security:
+        - authCookie: []
+      description: Delete generated Impostor for that avatar.
   /Steam/transactions:
     get:
       summary: List Steam Transactions
@@ -909,27 +1000,6 @@ paths:
   /favorites/{favoriteId}:
     parameters:
       - $ref: '#/components/parameters/favoriteId'
-    get:
-      summary: Show Favorite
-      tags:
-        - favorites
-      x-codeSamples:
-        - lang: cURL
-          source: |-
-            curl -X GET "https://api.vrchat.cloud/api/1/favorites/{favoriteId}" \
-                 -b "auth={authCookie}"
-      responses:
-        '200':
-          $ref: '#/components/responses/FavoriteResponse'
-        '401':
-          $ref: '#/components/responses/MissingCredentialsError'
-        '404':
-          $ref: '#/components/responses/FavoriteNotFoundError'
-      operationId: getFavorite
-      security:
-        - authCookie: []
-      description: Return information about a specific Favorite.
-      parameters: []
     delete:
       summary: Remove Favorite
       operationId: removeFavorite
@@ -2155,7 +2225,7 @@ paths:
     get:
       summary: Get posts from a Group
       description: Get posts from a Group
-      operationId: getGroupPost
+      operationId: getGroupPosts
       tags:
         - groups
       parameters:
@@ -2168,7 +2238,7 @@ paths:
           description: See public posts only.
       responses:
         '200':
-          $ref: '#/components/responses/GroupPostResponse'
+          $ref: '#/components/responses/GroupPostsResponse'
         '401':
           $ref: '#/components/responses/MissingCredentialsError'
       security:
@@ -3071,6 +3141,68 @@ paths:
           $ref: '#/components/responses/MissingCredentialsError'
       tags:
         - playermoderation
+  /prints/user/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/userId'
+    get:
+      summary: Get Own Prints
+      operationId: getUserPrints
+      security:
+        - authCookie: []
+      x-codeSamples:
+        - lang: cURL
+          source: |-
+            curl -X GET "https://api.vrchat.cloud/api/1/prints/user/{userId}" \
+                 -b "auth={authCookie}"
+      responses:
+        '200':
+          $ref: '#/components/responses/PrintListResponse'
+        '401':
+          $ref: '#/components/responses/MissingCredentialsError'
+        '403':
+          $ref: '#/components/responses/UnableToRequestOtherUsersPrintsError'
+      tags:
+        - prints
+      description: Returns a list of all prints of the user. User id has to be your own userId, as you can't request other user's prints.
+  /prints/{printId}:
+    parameters:
+      - $ref: '#/components/parameters/printId'
+    get:
+      summary: Get Print
+      operationId: getPrint
+      security:
+        - authCookie: []
+      x-codeSamples:
+        - lang: cURL
+          source: |-
+            curl -X GET "https://api.vrchat.cloud/api/1/prints/{printId}" \
+                 -b "auth={authCookie}"
+      responses:
+        '200':
+          $ref: '#/components/responses/PrintResponse'
+        '401':
+          $ref: '#/components/responses/MissingCredentialsError'
+      tags:
+        - prints
+      description: Returns a print.
+    delete:
+      summary: Delete Print
+      operationId: deletePrint
+      security:
+        - authCookie: []
+      x-codeSamples:
+        - lang: cURL
+          source: |-
+            curl -X DELETE "https://api.vrchat.cloud/api/1/prints/{printId}" \
+                 -b "auth={authCookie}"
+      responses:
+        '200':
+          description: Empty response if successful
+        '401':
+          $ref: '#/components/responses/MissingCredentialsError'
+      tags:
+        - prints
+      description: Returns a print.
   /config:
     get:
       summary: Fetch API Config
@@ -3532,6 +3664,99 @@ paths:
           $ref: '#/components/responses/MissingCredentialsError'
       operationId: getUserNote
       description: Get a particular user note
+  /users/{userId}/addTags:
+    parameters:
+      - $ref: '#/components/parameters/userId'
+    post:
+      summary: Add User Tags
+      x-codeSamples:
+        - lang: cURL
+          source: |-
+            curl -X POST "https://api.vrchat.cloud/api/1/users/{userId}/addTags" \
+                 -b "auth={authCookie}" \
+                 --data '{"tags": [ "language_zxx" ] }'
+      description: Adds tags to the user's profile
+      operationId: addTags
+      tags:
+        - users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeUserTagsRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/CurrentUserResponse'
+        '400':
+          $ref: '#/components/responses/UserTagInvalidError'
+        '401':
+          $ref: '#/components/responses/MissingCredentialsError'
+      security:
+        - authCookie: []
+  /users/{userId}/removeTags:
+    parameters:
+      - $ref: '#/components/parameters/userId'
+    post:
+      summary: Remove User Tags
+      x-codeSamples:
+        - lang: cURL
+          source: |-
+            curl -X POST "https://api.vrchat.cloud/api/1/users/{userId}/removeTags" \
+                 -b "auth={authCookie}" \
+                 --data '{"tags": [ "language_zxx" ] }'
+      description: Removes tags from the user's profile
+      operationId: removeTags
+      tags:
+        - users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeUserTagsRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/CurrentUserResponse'
+        '400':
+          $ref: '#/components/responses/UserTagInvalidError'
+        '401':
+          $ref: '#/components/responses/MissingCredentialsError'
+      security:
+        - authCookie: []
+  /users/{userId}/badges/{badgeId}:
+    parameters:
+      - $ref: '#/components/parameters/userId'
+      - $ref: '#/components/parameters/badgeId'
+    put:
+      summary: Update User Badge
+      x-codeSamples:
+        - lang: cURL
+          source: |-
+            curl -X PUT "https://api.vrchat.cloud/api/1/users/{userId}/badges/{badgeId}" \
+                 -b "auth={authCookie}" \
+                 --data '{"hidden": true, "showcased": false }'
+      description: Updates a user's badge
+      operationId: updateBadge
+      tags:
+        - users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserBadgeRequest'
+      responses:
+        '200':
+          description: The user's badge is updated.
+        '401':
+          $ref: '#/components/responses/MissingCredentialsError'
+        '403':
+          $ref: '#/components/responses/UserMustBeOwnError'
+        '404':
+          description: The user does not have the badge.
+      security:
+        - authCookie: []
   /users/{userId}/instances/groups:
     parameters:
       - $ref: '#/components/parameters/userId'
@@ -3553,6 +3778,56 @@ paths:
           $ref: '#/components/responses/MissingCredentialsError'
         '403':
           $ref: '#/components/responses/UserMustBeOwnError'
+      security:
+        - authCookie: []
+  /users/{userId}/{worldId}/persist/exists:
+    parameters:
+      - $ref: '#/components/parameters/userId'
+      - $ref: '#/components/parameters/worldId'
+    get:
+      summary: Check User Persistence Exists
+      x-codeSamples:
+        - lang: cURL
+          source: |-
+            curl -X GET "https://api.vrchat.cloud/api/1/users/{userId}/{worldId}/persist/exists" \
+                 -b "auth={authCookie}"
+      description: Checks whether the user has persistence data for a given world
+      operationId: checkUserPersistenceExists
+      tags:
+        - users
+        - worlds
+      responses:
+        '200':
+          description: The user has persistence data for the given world.
+        '401':
+          $ref: '#/components/responses/MissingCredentialsError'
+        '404':
+          description: The user does not have persistence data for the given world.
+      security:
+        - authCookie: []
+  /users/{userId}/{worldId}/persist:
+    parameters:
+      - $ref: '#/components/parameters/userId'
+      - $ref: '#/components/parameters/worldId'
+    delete:
+      summary: Delete User Persistence
+      x-codeSamples:
+        - lang: cURL
+          source: |-
+            curl -X DELETE "https://api.vrchat.cloud/api/1/users/{userId}/{worldId}/persist" \
+                 -b "auth={authCookie}"
+      description: Deletes the user's persistence data for a given world
+      operationId: deleteUserPersistence
+      tags:
+        - users
+        - worlds
+      responses:
+        '200':
+          description: The user's persistence data for the given world is deleted.
+        '401':
+          $ref: '#/components/responses/MissingCredentialsError'
+        '404':
+          description: The user does not have persistence data for the given world.
       security:
         - authCookie: []
   /worlds:
@@ -3962,10 +4237,9 @@ components:
       title: AgeVerificationStatus
       type: string
       description: |
-        obsolete, use `ageVerified` instead.
+        `verified` is obsolete.
 
-        `ageVerificationStatus == "18+"` => `ageVerified == true`
-        `ageVerificationStatus != "18+"` => `ageVerified == false`
+        User who have verified and are 18+ can switch to `plus18` status.
       enum:
         - hidden
         - verified
@@ -3977,7 +4251,7 @@ components:
     AgeVerified:
       title: AgeVerified
       type: boolean
-      description: '`true` if, user is age verified 18 or above. but `false`, when status is not shared. Otherwise always `false`.'
+      description: '`true` if, user is age verified (not 18+).'
     BadgeID:
       example: bdg_a60e514a-8cb7-4702-8f24-2786992be1a8
       title: BadgeID
@@ -4307,6 +4581,19 @@ components:
           type: array
         presence:
           $ref: '#/components/schemas/CurrentUserPresence'
+        platform_history:
+          type: array
+          items:
+            type: object
+            properties:
+              isMobile:
+                type: boolean
+              platform:
+                type: string
+                nullable: true
+              recorded:
+                type: string
+                format: date-time
         profilePicOverride:
           type: string
         profilePicOverrideThumbnail:
@@ -4759,6 +5046,57 @@ components:
           minLength: 1
           default: 5.3.4p1
           example: 2022.3.6f1
+    ServiceStatus:
+      title: ServiceStatus
+      type: object
+      description: Status information for a service request
+      properties:
+        created_at:
+          format: date-time
+          type: string
+        id:
+          description: The id of this service, NOT the id of the thing this service was requested for.
+          type: string
+        progress:
+          type: array
+          items:
+            type: object
+        requesterUserId:
+          description: The id of the user who requested this service.
+          $ref: '#/components/schemas/UserID'
+        state:
+          type: string
+        subjectId:
+          description: The id of the thing this service was requested for.
+          type: string
+        subjectType:
+          description: The kind of the thing this service was requested for.
+          type: string
+        type:
+          description: The kind of service that was requested.
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - created_at
+        - id
+        - progress
+        - requesterUserId
+        - state
+        - subjectId
+        - subjectType
+        - type
+        - updated_at
+    ServiceQueueStats:
+      title: ServiceQueueStats
+      type: object
+      description: Statistics about the user's currently queued service request
+      properties:
+        estimatedServiceDurationSeconds:
+          type: integer
+      required:
+        - estimatedServiceDurationSeconds
     TransactionID:
       example: txn_e5c72948-e735-4880-8245-24b2a41198b0
       title: TransactionID
@@ -7786,7 +8124,6 @@ components:
         - clientNumber
         - displayName
         - full
-        - gameServerVersion
         - id
         - instanceId
         - instancePersistenceEnabled
@@ -7912,6 +8249,53 @@ components:
       required:
         - moderated
         - type
+    PrintID:
+      type: string
+      example: prnt_0a0aa0a0-85ea-42eb-b2f7-4840d7f341fa
+      title: PrintID
+    Print:
+      title: Print
+      type: object
+      description: Info about a print
+      properties:
+        authorId:
+          $ref: '#/components/schemas/UserID'
+        authorName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        files:
+          type: object
+          properties:
+            fileId:
+              $ref: '#/components/schemas/FileID'
+            image:
+              type: string
+              description: Link to file, e.g. https://api.vrchat.cloud/api/1/file/file_66fe782d-f2bd-4462-9761-1d766d7b2b26/1/file
+        id:
+          $ref: '#/components/schemas/PrintID'
+        note:
+          type: string
+        ownerId:
+          $ref: '#/components/schemas/UserID'
+        timestamp:
+          type: string
+          format: date-time
+        worldId:
+          $ref: '#/components/schemas/WorldID'
+        worldName:
+          type: string
+      required:
+        - authorId
+        - authorName
+        - createdAt
+        - files
+        - id
+        - note
+        - timestamp
+        - worldId
+        - worldName
     APIConfigAnnouncement:
       title: APIConfigAnnouncement
       type: object
@@ -9591,6 +9975,25 @@ components:
       required:
         - targetUserId
         - note
+    ChangeUserTagsRequest:
+      title: ChangeUserTagsRequest
+      type: object
+      properties:
+        tags:
+          description: The tags being added or removed.
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+      required:
+        - tags
+    UpdateUserBadgeRequest:
+      title: UpdateUserBadgeRequest
+      type: object
+      properties:
+        hidden:
+          type: boolean
+        showcased:
+          type: boolean
     LimitedUnityPackage:
       description: ''
       properties:
@@ -10237,6 +10640,18 @@ components:
                 error:
                   message: \"You can only see your own favorite avatars!\"
                   status_code: 403
+    AvatarImpostorEnqueueResponse:
+      description: Returns a Service Status.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ServiceStatus'
+    AvatarImpostorQueueStatsResponse:
+      description: Returns a Service Queue Stats.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ServiceQueueStats'
     TransactionListResponse:
       description: Returns a list of Transaction objects.
       content:
@@ -10351,18 +10766,6 @@ components:
                 error:
                   message: you are not friends with that userǃ
                   status_code: 403
-    FavoriteNotFoundError:
-      description: Error response when trying to show information about a non-existent favorite.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          examples:
-            404 Favorite not found:
-              value:
-                error:
-                  message: 404 couldn't find that favorite
-                  status_code: 404
     FavoriteRemovedSuccess:
       description: Success response after removing a favorite.
       content:
@@ -10375,6 +10778,18 @@ components:
                 success:
                   message: favorite deleted!
                   status_code: 200
+    FavoriteNotFoundError:
+      description: Error response when trying to show information about a non-existent favorite.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            404 Favorite not found:
+              value:
+                error:
+                  message: 404 couldn't find that favorite
+                  status_code: 404
     FavoriteGroupListResponse:
       description: Returns a list of FavoriteGroup objects.
       content:
@@ -10950,6 +11365,17 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/GroupPermission'
+    GroupPostsResponse:
+      description: Returns a GroupPost Array.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              posts:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GroupPost'
     GroupPostResponse:
       description: Returns a GroupPost object.
       content:
@@ -11347,6 +11773,32 @@ components:
                 success:
                   message: PlayerModerations of type undefined removed
                   status_code: 200
+    PrintListResponse:
+      description: Returns a list of Print objects.
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Print'
+    UnableToRequestOtherUsersPrintsError:
+      description: Error response when trying to request another user's prints.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            403 Unable to request another user's prints:
+              value:
+                error:
+                  message: Unable to request another user's prints.
+                  status_code: 403
+    PrintResponse:
+      description: Returns a single Print object.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Print'
     APIConfigResponse:
       description: Returns the API's config.
       content:
@@ -11538,6 +11990,24 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/UserNote'
+    UserTagInvalidError:
+      description: Error response when a user attempts to add an invalid, restricted, or duplicate tag to their profile, attempts to add tags above the limit for their profile, or attempts to remove invalid, restricted, or absent tag from their profile.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    UserMustBeOwnError:
+      description: Error response when trying get group instances of another user.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            User Id must be your own:
+              value:
+                error:
+                  message: User ID must be your own․
+                  status_code: 403
     UserGroupInstanceListResponse:
       description: Returns a list of Instance objects with a fetched at time.
       content:
@@ -11552,18 +12022,6 @@ components:
                 type: array
                 items:
                   $ref: '#/components/schemas/Instance'
-    UserMustBeOwnError:
-      description: Error response when trying get group instances of another user.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          examples:
-            User Id must be your own:
-              value:
-                error:
-                  message: User ID must be your own․
-                  status_code: 403
     LimitedWorldListResponse:
       description: Returns a list of LimitedWorld objects.
       content:
@@ -12025,6 +12483,14 @@ components:
       schema:
         type: string
       description: Must be a valid permission ID.
+    printId:
+      name: printId
+      in: path
+      required: true
+      schema:
+        type: string
+        example: prnt_0a0aa0a0-85ea-42eb-b2f7-4840d7f341fa
+      description: Print ID.
     require:
       name: require
       in: query
@@ -12082,6 +12548,13 @@ components:
       schema:
         type: string
       description: Must be a valid user note ID.
+    badgeId:
+      name: badgeId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Must be a valid badge ID.
     fuzzy:
       name: fuzzy
       in: query
